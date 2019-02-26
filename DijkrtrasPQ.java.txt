@@ -1,0 +1,255 @@
+package dijkstraheap;
+import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Scanner;
+
+public class dijkstras {
+    
+    static class HeapNode
+    {
+        int vertex;
+        double distance;
+    }
+    static class Edge
+    {
+        int source;
+        int destination;
+        double weight;
+
+        public Edge(int source, int destination, double weight) {
+            this.source = source;
+            this.destination = destination;
+            this.weight = weight;
+        }
+    }
+
+    static class Graph {
+
+        int vertices;
+        List<String> destinationNodes = new ArrayList<>();
+        LinkedList<Edge>[] adjacencylist;
+
+        Graph(int vertices) {
+            this.vertices = vertices;
+            adjacencylist = new LinkedList[vertices];
+            
+            for (int i = 0; i < vertices; i++) /* initialize adjacency lists for all the vertices*/
+            {
+                adjacencylist[i] = new LinkedList<>();
+            }
+        }
+
+        public void addEdge_toNode(int source, int destination, double weight, int index) {
+            Edge edge = new Edge(source, destination, weight);
+            adjacencylist[source - 1].addFirst(edge);
+
+            edge = new Edge(destination, source, weight);
+            adjacencylist[destination - 1].addFirst(edge); 
+        }
+
+        public void getMinDistance(int sourceVertex, int destVertex, int index) 
+        {
+            String path = "" + (sourceVertex + 1);
+            int INFINITY = Integer.MAX_VALUE;
+            boolean[] SPT = new boolean[vertices];
+            HeapNode[] heapNodes = new HeapNode[vertices];
+            for (int i = 0; i < vertices; i++) {
+                heapNodes[i] = new HeapNode();
+                heapNodes[i].vertex = i;
+                heapNodes[i].distance = INFINITY;
+            }
+
+            //decrease the distance for the first index and add all the vertices to the MinHeap
+            heapNodes[sourceVertex].distance = 0;
+            MinHeap minHeap = new MinHeap(vertices);
+            for (int i = 0; i < vertices; i++) {
+                minHeap.insert(heapNodes[i]);
+            }
+
+            //while minHeap is not empty
+            while (!minHeap.isEmpty()) {
+                //extract the min
+                HeapNode extractedNode = minHeap.extractMin();
+                int extractedVertex = extractedNode.vertex;
+                SPT[extractedVertex] = true;
+
+                /*check total weight from source to vertex_V is less than the current distance value, if yes then update the distance*/
+                LinkedList<Edge> list = adjacencylist[extractedVertex];
+                for (int i = 0; i < list.size(); i++) {
+                    Edge edge = list.get(i);
+                    int destination = edge.destination;
+                    //only if  destination vertex is not present in SPT
+                    if (SPT[destination - 1] == false) {
+                        
+                        double newKey = heapNodes[extractedVertex].distance + edge.weight;
+                        double currentKey = heapNodes[destination - 1].distance;
+                        if (currentKey > newKey) {
+                            if (edge.destination == destVertex && (extractedVertex != sourceVertex)) {
+                                path = path + "|" + (extractedVertex + 1);
+                                //System.out.println("Its " + (extractedVertex + 1));
+                            }
+                            decreaseKey(minHeap, newKey, destination - 1);
+                            heapNodes[destination - 1].distance = newKey;
+                        }
+                    }
+                }
+            }
+            
+            if (index < 1) {
+                printShortPath(heapNodes, sourceVertex, destVertex);
+                System.out.println("");
+            }
+            path = path + "|" + destVertex;
+            if(!destinationNodes.contains(destVertex+""))
+            {
+                   System.out.println("Shortest Path from source " + (sourceVertex + 1) + " to destination " + destVertex + " : " + path.replace("|", "->"));
+                   destinationNodes.add(destVertex+"");
+            }
+        }
+        
+        public void printShortPath(HeapNode[] resultSet, int sourceVertex, int destVertex) {
+            int i;
+            System.out.println("");
+            System.out.println("------------------------------------------------------");
+            for (i = 0; i < vertices; i++) {
+                System.out.println("Source vertex: " + (sourceVertex + 1));
+                System.out.println("Destination vertex: " + (resultSet[i].vertex + 1));
+                System.out.println( "Shortest Distance: " + resultSet[i].distance);
+                System.out.println("------------------------------------------------------");
+            }
+        }
+        public void decreaseKey(MinHeap minHeap, double newKey, int vertex) {
+            //get the index which distance's needs a decrease;
+            int index = minHeap.indexes[vertex];
+            //get the node and update its value
+            HeapNode node = minHeap.mH[index];
+            node.distance = newKey;
+            minHeap.stepUp(index);
+        }
+    }
+
+    static class MinHeap {
+
+        int capacity;
+        int currentSize;
+        HeapNode[] mH;
+        int[] indexes;
+
+        public MinHeap(int capacity) {
+            this.capacity = capacity;
+            mH = new HeapNode[capacity + 1];
+            indexes = new int[capacity];
+            mH[0] = new HeapNode();
+            mH[0].distance = Integer.MIN_VALUE;
+            mH[0].vertex = -1;
+            currentSize = 0;
+        }
+
+//        public void display() {
+//            for (int i = 0; i <= currentSize; i++) {
+//                System.out.println(" " + mH[i].vertex + "   distance   " + mH[i].distance);
+//            }
+//            System.out.println("________________________");
+//        }
+
+        public void insert(HeapNode x) {
+            currentSize++;
+            int indexValue = currentSize;
+            mH[indexValue] = x;
+            indexes[x.vertex] = indexValue;
+            stepUp(indexValue);
+        }
+
+        public void stepUp(int pos) {
+            int parentIdx = pos / 2;
+            int currentIdx = pos;
+            while (currentIdx > 0 && mH[parentIdx].distance > mH[currentIdx].distance) {
+                HeapNode currentNode = mH[currentIdx];
+                HeapNode parentNode = mH[parentIdx];
+
+                //swap the positions
+                indexes[currentNode.vertex] = parentIdx;
+                indexes[parentNode.vertex] = currentIdx;
+                swap(currentIdx, parentIdx);
+                currentIdx = parentIdx;
+                parentIdx = parentIdx / 2;
+            }
+        }
+
+        public HeapNode extractMin() {
+            HeapNode min = mH[1];
+            HeapNode lastNode = mH[currentSize];
+//            update the indexes[] and move the last node to the top
+            indexes[lastNode.vertex] = 1;
+            mH[1] = lastNode;
+            mH[currentSize] = null;
+            stepDown(1);
+            currentSize--;
+            return min;
+        }
+
+        public void stepDown(int k) {
+            int smallest = k;
+            int leftChildIdx = 2 * k;
+            int rightChildIdx = 2 * k + 1;
+            if (leftChildIdx < heapSize() && mH[smallest].distance > mH[leftChildIdx].distance) {
+                smallest = leftChildIdx;
+            }
+            if (rightChildIdx < heapSize() && mH[smallest].distance > mH[rightChildIdx].distance) {
+                smallest = rightChildIdx;
+            }
+            if (smallest != k) {
+
+                HeapNode smallestNode = mH[smallest];
+                HeapNode kNode = mH[k];
+
+                //swap the positions
+                indexes[smallestNode.vertex] = k;
+                indexes[kNode.vertex] = smallest;
+                swap(k, smallest);
+                stepDown(smallest);
+            }
+        }
+
+        public void swap(int a, int b) {
+            HeapNode temp = mH[a];
+            mH[a] = mH[b];
+            mH[b] = temp;
+        }
+
+        public boolean isEmpty() {
+            return currentSize == 0;
+        }
+
+        public int heapSize() {
+            return currentSize;
+        }
+    }
+
+    public static void main(String[] args) {
+        Scanner input = new Scanner(System.in);
+        System.out.print("Enter no. vertices: ");
+        int vertices = input.nextInt();
+
+        System.out.print("Enter no. Edges: ");
+        int num_edges = input.nextInt();
+
+        int[] destV = new int[num_edges];
+
+        Graph graph = new Graph(vertices);
+        System.out.println("Assuming the Source Vertex as 1 ");
+        for (int i = 0; i < num_edges; i++) {
+            System.out.println("Enter the source, destination and weight of edge");
+            int src = input.nextInt();
+            int dst = input.nextInt();
+            destV[i] = dst;
+            double weight = input.nextDouble();
+            graph.addEdge_toNode(src, dst, weight, i);
+        }
+        int sourceVertex = 0;
+        for (int i = 0; i < num_edges; i++) {
+        graph.getMinDistance(sourceVertex, destV[i], i);
+        }
+    }
+}
